@@ -80,17 +80,99 @@ L'architecture respecte strictement les principes de séparation des préoccupat
 
 ---
 
-## 2. Démarrage Rapide
+# Partie 2 — Représenter les Documents Universitaires
+
+## 1. Modélisation & Principes de Conception POO
+
+Dans cette partie, la modélisation métier sépare le socle abstrait technique et l'entité concrète du domaine :
+- **Classe abstraite de base** : `App\Core\AbstractDocument` (`src/Core/AbstractDocument.php`)
+- **Entité concrète** : `App\Entity\CopieExamen` (`src/Entity/CopieExamen.php`)
+
+```mermaid
+classDiagram
+    namespace App_Core {
+        class AbstractDocument {
+            <<abstract>>
+            #?int id
+            #DateTimeImmutable dateDepot
+            +getId() ?int
+            +setId(?int id) static
+            +getDateDepot() DateTimeImmutable
+            +setDateDepot(DateTimeImmutable|string dateDepot) static
+        }
+    }
+
+    namespace App_Entity {
+        class CopieExamen {
+            -float noteBrute
+            -float noteFinale
+            -float penaliteAppliquee
+            -DateTimeImmutable dateLimite
+            +__construct(DateTimeImmutable|string dateLimite, float noteBrute, float noteFinale, float penaliteAppliquee, DateTimeImmutable|string dateDepot, ?int id)
+            +getNoteBrute() float
+            +setNoteBrute(float noteBrute) static
+            +getNoteFinale() float
+            +setNoteFinale(float noteFinale) static
+            +getPenaliteAppliquee() float
+            +setPenaliteAppliquee(float penalite) static
+            +getDateLimite() DateTimeImmutable
+            +setDateLimite(DateTimeImmutable|string dateLimite) static
+            +isEnRetard() bool
+            +calculerRetardJours() int
+            -validerNote(float note, string nomChamp) void
+        }
+    }
+
+    AbstractDocument <|-- CopieExamen : extends
+```
+
+---
+
+## 2. Réponses aux Questions Conceptuelles
+
+### Q1. Quelle relation avez-vous établie entre les deux classes ?
+- **Relation d'Héritage (Spécialisation / Généralisation)** : `CopieExamen extends AbstractDocument`.
+- **Justification** : Une copie d'examen *est un* (`is-a`) document universitaire. Elle hérite des attributs communs (`$id`, `$dateDepot`) définis dans la classe mère `App\Core\AbstractDocument` et y ajoute ses caractéristiques propres (`$noteBrute`, `$noteFinale`, `$penaliteAppliquee`, `$dateLimite`).
+
+---
+
+### Q2. Pourquoi ne peut-on pas créer directement un `AbstractDocument` ?
+- La classe est déclarée avec le mot-clé **`abstract`**.
+- Dans le modèle métier, un « document » générique est une notion abstraite incomplète : une université manipule des documents concrets précis (une copie d'examen, une thèse, un certificat médical ou un rapport de stage).
+- En PHP, tenter d'instancier directement une classe abstraite (`new AbstractDocument()`) déclenche une erreur fatale (`Error`), forçant les développeurs à instancier un type concret spécifique.
+
+---
+
+### Q3. Pourquoi l'identifiant peut-il être absent avant la sauvegarde ?
+- Lors de l'instanciation d'un nouvel objet métier en mémoire (ex: lors de la soumission d'une copie par un étudiant), l'entité se trouve dans un **état transitoire non persisté**.
+- L'identifiant unique définitif est attribué par le moteur de base de données relationnelle (PostgreSQL via une séquence `SERIAL` ou une colonne `GENERATED ALWAYS AS IDENTITY`) au moment du `INSERT`.
+- La propriété `$id` doit donc être nullable (`?int $id = null`) pour refléter fidèlement cet état avant persistance.
+
+---
+
+### Q4. Quel principe de conception est favorisé par la protection des propriétés ?
+- Le principe d'**Encapsulation** (l'un des piliers fondamentaux de la POO).
+- Protéger les propriétés en visibilité `protected` ou `private` et restreindre les mutations via des méthodes dédiées (setters) permet à l'objet de :
+  1. **Garantir ses invariants métier** : refuser systématiquement une note inférieure à 0 ou supérieure à 20, ou une pénalité négative (levée d'`InvalidArgumentException`).
+  2. **Masquer son implémentation interne** : empêcher le code extérieur d'altérer arbitrairement l'état de l'objet sans passer par les règles de validation.
+
+---
+
+## 3. Démarrage Rapide & Tests
 
 ### 1. Démarrer le serveur de développement local
 ```bash
 php -S localhost:8000 -t public
 ```
-Puis accédez à [http://localhost:8000](http://localhost:8000) depuis votre navigateur.
+
+### 2. Exécuter la suite de tests de la Partie 2
+```bash
+php tests/test_partie2.php
+```
 
 ---
 
-## 3. Journal des Versions (Changelog)
+## 4. Journal des Versions (Changelog)
 
 - **`v0.0.0`** : Initialisation du dépôt Git.
 - **`v0.1.0`** : **Partie 1 — Préparation de l'application & Architecture** :
@@ -100,3 +182,11 @@ Puis accédez à [http://localhost:8000](http://localhost:8000) depuis votre nav
   - Configuration de l'autoloading PSR-4 via Composer.
   - Vues d'affichage et page d'accueil avec design CSS moderne.
   - Réponses exhaustives aux 4 questions architecturales.
+- **`v0.2.0`** : **Partie 2 — Représenter les documents universitaires** :
+  - Création de la classe de base abstraite `App\Core\AbstractDocument` avec encapsulation de `$id` (nullable) et `$dateDepot` (`DateTimeImmutable`).
+  - Création de l'entité concrète `App\Entity\CopieExamen extends AbstractDocument` avec gestion de `$noteBrute`, `$noteFinale`, `$penaliteAppliquee`, `$dateLimite`.
+  - Validation stricte des notes dans l'intervalle $[0, 20]$ (rejet avec `InvalidArgumentException`).
+  - Respect strict des contraintes (zéro SQL, zéro `$_POST`, zéro HTML).
+  - Réponses complètes aux 4 questions théoriques (Héritage, Abstraction, Nullabilité de l'ID, Encapsulation).
+  - Suite de tests unitaires automatisée (`tests/test_partie2.php`).
+
