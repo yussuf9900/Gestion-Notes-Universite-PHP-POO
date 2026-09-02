@@ -11,10 +11,10 @@ Le dossier `vendor/` contient l'ensemble des bibliothèques tierces et fichiers 
 
 ## 2. Commit vs Tag
 - Un **commit** enregistre un ensemble de modifications précises à un instant $T$ dans l'historique d'une branche.
-- Un **tag** (étiquette) est un pointeur immuable sur un commit spécifique marquant un jalon important ou une version publiable (ex: `v0.1.0`, `v0.2.0`, `v0.3.0`).
+- Un **tag** (étiquette) est un pointeur immuable sur un commit spécifique marquant un jalon important ou une version publiable (ex: `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`).
 
 ## 3. Pourquoi `main` doit rester stable ?
-La branche `main` représente le code de production validé et directement déployable. Tous les développements s'effectuent sur des branches isolées (`partie/01-initialisation`, `partie/02-documents`, `partie/03-database`) et ne sont fusionnés sur `main` qu'une fois testés, fonctionnels et vérifiés.
+La branche `main` représente le code de production validé et directement déployable. Tous les développements s'effectuent sur des branches isolées (`partie/01-initialisation`, `partie/02-documents`, `partie/03-database`, `partie/partie-04`) et ne sont fusionnés sur `main` qu'une fois testés, fonctionnels et vérifiés.
 
 **À retenir :**
 > - `vendor/` = dépendances externes & code généré, non versionné.
@@ -71,7 +71,7 @@ L'architecture respecte strictement les principes de séparation des préoccupat
 | **`src/`** | **Code Source Applicatif (Namespace `App\`)** : | Organisation modulaire et typée respectant les principes SOLID et patrons de conception : |
 | ↳ `src/Entity/` | **Modèle de Domaine & Entités Métier** :<br>• `AbstractDocument.php`<br>• `CopieExamen.php` | Objets métier purs encapsulant les données du domaine, leurs propriétés, états et comportements intrinsèques. |
 | ↳ `src/Repository/` | **Accès aux Données & Persistance (DAL)** :<br>• `Database.php` : connexion Singleton PDO<br>• `Query.php` : gestionnaire d'exécution SQL (`prepare`, `query`, `executeQuery`, `fetch`, etc.)<br>• `CopieRepository.php` : requêtes spécifiques aux copies | Isole l'accès technique et l'écriture des requêtes SQL préparées à PostgreSQL (*Repository Pattern*). |
-| ↳ `src/Dto/` | **Objets de Transfert de Données (DTO)** :<br>• `CopieDto.php` | Structures de données typées transportant les données saisies sans exposer les entités. |
+| ↳ `src/Dto/` | **Objets de Transfert de Données (DTO)** :<br>• `SoumettreCopieDTO.php` | Structures de données typées et immuables transportant les données saisies sans exposer les entités. |
 | ↳ `src/Validator/` | **Validation d'Intégrité & Conformité** :<br>• `CopieValidator.php` | Contrôle la validité des données (notes, dates, champs obligatoires). |
 | ↳ `src/Rule/` | **Règles Métier & Calculs de Pénalités** :<br>• `PenaltyRuleInterface.php`<br>• `FixedLatePenaltyRule.php`<br>• `DailyLatePenaltyRule.php`<br>• `ZeroPenaltyRule.php` | Isole le calcul dynamique des pénalités selon le **Strategy Pattern** (Open/Closed Principle). |
 | ↳ `src/Controller/` | **Orchestration des Flux Applicatifs** :<br>• `BaseController.php`<br>• `HomeController.php`<br>• `CopieController.php` | Réceptionne les requêtes HTTP, orchestre les entités et repositories, et transmet les données aux vues. |
@@ -209,6 +209,99 @@ Le schéma DDL est défini dans `database/schema.sql` :
 
 ---
 
+# Partie 4 — Transporter les Données du Formulaire
+
+## 1. Modélisation DTO & Principes de Conception
+
+Le navigateur transmet les données du formulaire sous forme de chaînes de caractères brutes dans la superglobale `$_POST`. Pour respecter l'étanchéité des couches et interdire l'exposition directe de `$_POST` aux classes métier, l'objet **`App\Dto\SoumettreCopieDTO`** (`src/Dto/SoumettreCopieDTO.php`) est introduit.
+
+Cet objet est déclaré en **`readonly class`** (PHP 8.2+) et assure :
+- Le transport exclusif des données requises : `noteBrute` (`float`), `dateDepot` (`DateTimeImmutable`), `dateLimite` (`DateTimeImmutable`).
+- La conversion automatique des chaînes issues du formulaire en types forts et immuables (`SoumettreCopieDTO::fromArray()`).
+- La validation d'intégrité à l'entrée et le signalement immédiat des anomalies via `InvalidArgumentException`.
+- L'absence stricte de logique de persistance SQL, de calcul de note/pénalité ou de rendu HTML.
+
+```mermaid
+classDiagram
+    namespace HTTP_Layer {
+        class SuperGlobal_POST {
+            +string noteBrute
+            +string dateDepot
+            +string dateLimite
+        }
+    }
+
+    namespace Dto_Layer {
+        class SoumettreCopieDTO {
+            <<readonly>>
+            +float noteBrute
+            +DateTimeImmutable dateDepot
+            +DateTimeImmutable dateLimite
+            +__construct(float|string|null noteBrute, DateTimeInterface|string|null dateDepot, DateTimeInterface|string|null dateLimite)
+            +fromArray(array data)$ SoumettreCopieDTO
+            +getNoteBrute() float
+            +getDateDepot() DateTimeImmutable
+            +getDateLimite() DateTimeImmutable
+            +toArray() array
+            -convertirDate(DateTimeInterface|string|null date, string nomChamp) DateTimeImmutable
+        }
+    }
+
+    namespace Domain_Layer {
+        class CopieExamen {
+            -float noteBrute
+            -float noteFinale
+            -float penaliteAppliquee
+            -DateTimeImmutable dateLimite
+            +isEnRetard() bool
+            +calculerRetardJours() int
+        }
+    }
+
+    SuperGlobal_POST ..> SoumettreCopieDTO : fromArray() [Conversion & Validation d'Entrée]
+    SoumettreCopieDTO ..> CopieExamen : transporte les données typées
+```
+
+---
+
+## 2. Réponses aux Questions de la Partie 4
+
+### Q1. Pourquoi créer un objet supplémentaire alors que `$_POST` contient déjà les données ?
+- **Réponse & Justification** :
+  1. **Typage fort et intégrité (*Type Safety*)** : `$_POST` ne contient que des chaînes de caractères brutes ou des tableaux non typés. Le DTO garantit des types stricts (`float`, `\DateTimeImmutable`), empêchant l'injection de données incohérentes dans le domaine métier.
+  2. **Découplage architectural (*Separation of Concerns*)** : `$_POST` est directement lié au protocole HTTP. Si la source des données change (API JSON, commande CLI, message broker, import CSV), le cœur de métier reste intact car il ne dépend que du DTO et non de `$_POST`.
+  3. **Protection contre la sur-assignation (*Mass Assignment*)** : `$_POST` peut être manipulé côté client pour contenir des champs malveillants ou imprévus. Le DTO joue le rôle de liste blanche (*whitelist*) stricte ne capturant que les attributs autorisés.
+  4. **Contrat explicite & Auto-complétion** : Le DTO formalise clairement la structure des données d'entrée, permettant l'auto-complétion dans l'IDE, l'analyse statique (PHPStan) et une maintenabilité optimale.
+
+---
+
+### Q2. Quelle différence observez-vous entre cet objet et `CopieExamen` ?
+- **Réponse & Justification** :
+  1. **Nature et Rôle** :
+     - `SoumettreCopieDTO` est un **Objet de Transfert de Données (DTO)** passif et immuable (`readonly`) : sans identité propre, sans calcul métier de retard ou de pénalités, il sert uniquement de passerelle de transport pour véhiculer les données de l'interface vers le domaine.
+     - `CopieExamen` est une **Entité du Domaine Métier (*Domain Entity*)** : elle possède une identité (`id`), encapsule les règles de calcul universitaire (pénalités de retard, calcul de la note finale via `isEnRetard()` et `calculerRetardJours()`) et a vocation à être persistée en base.
+  2. **Périmètre des données** :
+     - Le DTO ne contient que les 3 données d'entrée : `noteBrute`, `dateDepot`, `dateLimite`.
+     - L'entité contient l'état complet du document : `id`, `dateDepot`, `dateLimite`, `noteBrute`, `penaliteAppliquee`, `noteFinale`.
+
+---
+
+### Q3. Cet objet doit-il posséder un identifiant de base de données ?
+- **Réponse & Justification** :
+  - **Non, absolument pas.**
+  - Un DTO est une structure éphémère de transport en mémoire, instanciée au moment de la réception d'une requête et détruite après traitement.
+  - L'identifiant de base de données (`id`) caractérise l'identité persistée d'une entité dans la table SQL `copies`. Associer un `$id` à `SoumettreCopieDTO` violerait la séparation des couches et introduirait une confusion sémantique majeure entre une intention de soumission (données saisies) et un enregistrement persistant en base.
+
+---
+
+### Q4. Où la conversion des chaînes de dates doit-elle avoir lieu ?
+- **Réponse & Justification** :
+  - **À la frontière d'entrée de l'application, lors de l'instanciation du DTO (`SoumettreCopieDTO::fromArray()`)** :
+  - La conversion des chaînes de dates (`string` $\to$ `\DateTimeImmutable`) doit s'effectuer dès la capture des données brutes, avant toute transmission aux entités et règles métier.
+  - En encapsulant la conversion et la validation de format dans la fabrique du DTO, on garantit que toute donnée injectée dans le domaine est immédiatement typée, valide et immuable. Les couches métier aval n'ont ainsi jamais à manipuler de chaînes de caractères de dates ni à gérer d'erreurs de formatage de date.
+
+---
+
 ## 3. Démarrage Rapide & Tests CLI
 
 ### 1. Initialiser la base de données PostgreSQL
@@ -216,9 +309,9 @@ Le schéma DDL est défini dans `database/schema.sql` :
 php database/init.php
 ```
 
-### 2. Exécuter la suite de tests automatisée de la Partie 3
+### 2. Exécuter la suite de tests automatisée de la Partie 4 (SoumettreCopieDTO)
 ```bash
-php tests/test_partie3.php
+php tests/test_partie4.php
 ```
 
 ---
@@ -227,28 +320,26 @@ php tests/test_partie3.php
 
 - **`v0.0.0`** : Initialisation du dépôt Git.
 - **`v0.1.0`** : **Partie 1 — Préparation de l'application & Architecture** :
-  - Mise en place de l'arborescence obligatoire (`database/`, `config/`, `public/`, `src/`, `templates/`).
-  - Découpage modulaire de `src/` (`Entity/`, `Repository/`, `Dto/`, `Validator/`, `Rule/`, `Controller/`).
-  - Mise en place du Front Controller `public/index.php`.
-  - Configuration de l'autoloading PSR-4 via Composer.
+  - Arborescence modulaire (`config/`, `database/`, `public/`, `src/`, `templates/`).
+  - Front Controller `public/index.php` et autoloader PSR-4.
   - Réponses exhaustives aux 4 questions architecturales.
 - **`v0.2.0`** : **Partie 2 — Représenter les documents universitaires** :
-  - Création de la classe de base abstraite `App\Entity\AbstractDocument` avec encapsulation de `$id` (nullable) et `$dateDepot` (`DateTimeImmutable`).
-  - Création de l'entité concrète `App\Entity\CopieExamen extends AbstractDocument` avec gestion de `$noteBrute`, `$noteFinale`, `$penaliteAppliquee`, `$dateLimite`.
-  - Validation stricte des notes dans l'intervalle $[0, 20]$ (rejet avec `InvalidArgumentException`).
+  - Classe abstraite `App\Entity\AbstractDocument` (`$id` nullable, `$dateDepot`).
+  - Entité concrète `App\Entity\CopieExamen extends AbstractDocument` (`$noteBrute`, `$noteFinale`, `$penaliteAppliquee`, `$dateLimite`, calcul du retard).
   - Réponses complètes aux 4 questions théoriques (Héritage, Abstraction, Nullabilité de l'ID, Encapsulation).
-  - Respect de la consigne : zéro commentaire dans le code source.
+  - Respect absolu : zéro commentaire dans le code source PHP.
 - **`v0.3.0`** : **Partie 3 — Préparer la persistance** :
-  - Script DDL `database/schema.sql` (table `copies`, types stricts, contraintes `CHECK`, index, données de test).
-  - Isolation des identifiants sensibles via `.env` (exclu par `.gitignore`), modèle `.env.example`, et chargement dynamique par `config/database.php`.
-  - Classe technique `App\Repository\Database` (Singleton PDO avec `ERRMODE_EXCEPTION`, `FETCH_ASSOC`, requêtes préparées non émulées).
-  - Script CLI d'initialisation `database/init.php`.
-  - Suite de tests unitaires automatisée `tests/test_partie3.php` validant la connexion, les requêtes préparées et les contraintes `CHECK`.
+  - Schéma DDL `database/schema.sql` (table `copies`, types stricts, contraintes `CHECK`, index).
+  - Isolation `.env` et chargement `config/database.php`.
+  - Singleton PDO `App\Repository\Database` et suite de tests.
   - Réponses complètes aux 4 questions théoriques de la Partie 3.
-  - Respect strict de la règle : zéro commentaire dans le code source PHP et SQL.
 - **`v0.3.1`** : **Évolution de la Couche Repository & Gestion des Requêtes** :
-  - Migration de la configuration vers `$_ENV` avec la bibliothèque `vlucas/phpdotenv`.
-  - Déplacement de `Database.php` dans `src/Repository/` (`App\Repository\Database`).
-  - Création de `src/Repository/Query.php` (`App\Repository\Query`) pour centraliser l'exécution des requêtes SQL (`prepare`, `query`, `executeQuery`, `fetchAll`, `fetch`, `lastInsertId`, transactions).
-  - Adaptation de `database/init.php` et `tests/test_partie3.php` pour valider `Query` et `Database`.
-  - Respect absolu de la consigne : zéro commentaire dans le code source.
+  - Déplacement de `Database.php` dans `src/Repository/`.
+  - Classe `App\Repository\Query` pour l'exécution des requêtes SQL sécurisées.
+- **`v0.4.0`** : **Partie 4 — Transporter les données du formulaire** :
+  - Création de `App\Dto\SoumettreCopieDTO` (`src/Dto/SoumettreCopieDTO.php`) en `readonly class` (PHP 8.2+).
+  - Encapsulation des données de soumission (`noteBrute`, `dateDepot`, `dateLimite`) et conversion de `$_POST` via `fromArray()`.
+  - Validation stricte des données reçues et signalement d'erreurs via `InvalidArgumentException`.
+  - Suite de tests automatisée `tests/test_partie4.php` (22 assertions validées).
+  - Réponses approfondies aux 4 questions théoriques de la Partie 4.
+  - Respect absolu de la consigne : zéro commentaire dans le code source PHP.
