@@ -1,5 +1,16 @@
 # Journal des Versions (CHANGELOG)
 
+## [v0.4.0] - 2026-09-02
+### Partie 4 — Transporter les données du formulaire
+- **Ajout** : Objet de Transfert de Données `App\Dto\SoumettreCopieDTO` (`src/Dto/SoumettreCopieDTO.php`) déclaré en `readonly class` (PHP 8.2+).
+- **Fonctionnalités** :
+  - Transport et encapsulation immuable des données de soumission : `noteBrute`, `dateDepot`, `dateLimite`.
+  - Méthode de fabrique `fromArray(array $data)` pour convertir les données du formulaire `$_POST` (chaînes $\to$ `float` et `DateTimeImmutable`).
+  - Validation stricte des entrées et signalement des valeurs absentes, non numériques, hors intervalle $[0, 20]$ ou des formats de dates invalides via `InvalidArgumentException`.
+- **Ajout** : Suite de tests automatisée `tests/test_partie4.php` (22 assertions validées).
+- **Documentation** : Réponses exhaustives aux 4 questions théoriques sur les DTO, la séparation avec `$_POST`, la distinction avec `CopieExamen` et la frontière de conversion des dates dans `README.md`.
+- **Règle** : Zéro commentaire dans l'intégralité du code source PHP.
+
 ## [v0.3.1] - 2026-09-02
 ### Évolution de la Couche Repository & Gestion des Requêtes
 - **Ajout** : Dépendance `vlucas/phpdotenv` et migration complète vers `$_ENV` dans `config/database.php` (abandon de `getenv()`).
