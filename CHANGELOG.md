@@ -1,5 +1,13 @@
 # Journal des Versions (CHANGELOG)
 
+## [v0.5.0] - 2026-09-02
+### Partie 5 — Stratégie de calcul des notes
+- **Ajout** : Contrat `App\Service\CalculNoteInterface` (`src/Service/CalculNoteInterface.php`).
+- **Ajout** : Règle de pénalité `App\Rule\ReglePenaliteInterface` et `App\Rule\ReglePenaliteFixe` (`src/Rule/ReglePenaliteFixe.php`) appliquant 2 points de pénalité en cas de retard.
+- **Ajout** : Service métier `App\Service\CalculNoteAvecRetardService` (`src/Service/CalculNoteAvecRetardService.php`) garantissant un plancher à 0 pour la note finale.
+- **Ajout** : Suite de tests automatisée `tests/test_partie5.php` (21 assertions validées).
+- **Règle** : Zéro commentaire dans l'intégralité du code source PHP.
+
 ## [v0.4.0] - 2026-09-02
 ### Partie 4 — Transporter les données du formulaire
 - **Ajout** : Objet de Transfert de Données `App\Dto\SoumettreCopieDTO` (`src/Dto/SoumettreCopieDTO.php`) déclaré en `readonly class` (PHP 8.2+).
