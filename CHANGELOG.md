@@ -1,5 +1,15 @@
 # Journal des Versions (CHANGELOG)
 
+## [v0.7.0] - 2026-09-02
+### Partie 7 — Service applicatif de soumission des copies
+- **Ajout** : Service métier `App\Service\SoumissionCopieService` (`src/Service/SoumissionCopieService.php`).
+- **Fonctionnalités** :
+  - Orchestration complète : réception du `SoumettreCopieDTO`, application de la règle de calcul via `CalculNoteInterface`, enregistrement via `CopieExamenRepositoryInterface` et restitution de l'entité.
+  - Découplage strict : aucune adhérence à `$_POST`, sessions ou gabarits HTML.
+  - Consultation simplifiée : méthodes `listerCopies()` et `consulterCopie(int $id)`.
+- **Ajout** : Suite de tests automatisée `tests/test_partie7.php` (13 assertions validées).
+- **Règle** : Zéro commentaire dans l'intégralité du code source PHP.
+
 ## [v0.6.0] - 2026-09-02
 ### Partie 6 — Persistance des copies (Repository)
 - **Ajout** : Contrat d'interface `App\Repository\CopieExamenRepositoryInterface` (`src/Repository/CopieExamenRepositoryInterface.php`).
