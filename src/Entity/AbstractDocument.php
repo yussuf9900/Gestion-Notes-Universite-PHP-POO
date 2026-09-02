@@ -2,18 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Core;
-
+namespace App\Entity;
 
 abstract class AbstractDocument
 {
-  
     protected ?int $id = null;
-
-   
     protected \DateTimeImmutable $dateDepot;
 
-  
     protected function __construct(
         \DateTimeInterface|string $dateDepot = new \DateTimeImmutable(),
         ?int $id = null
@@ -22,23 +17,20 @@ abstract class AbstractDocument
         $this->setDateDepot($dateDepot);
     }
 
-    
     public function getId(): ?int
     {
         return $this->id;
     }
 
-   
     public function setId(?int $id): static
     {
         if ($id !== null && $id <= 0) {
-            throw new \InvalidArgumentException("L'identifiant du document doit être un entier strictement positif.");
+            throw new \InvalidArgumentException("L'identifiant du document doit etre un entier strictement positif.");
         }
         $this->id = $id;
         return $this;
     }
 
-    
     public function getDateDepot(): \DateTimeImmutable
     {
         return $this->dateDepot;
@@ -50,7 +42,7 @@ abstract class AbstractDocument
             try {
                 $dateDepot = new \DateTimeImmutable($dateDepot);
             } catch (\Exception $e) {
-                throw new \InvalidArgumentException("Format de date de dépôt invalide : " . $e->getMessage());
+                throw new \InvalidArgumentException("Format de date de depot invalide : " . $e->getMessage());
             }
         } elseif ($dateDepot instanceof \DateTime) {
             $dateDepot = \DateTimeImmutable::createFromMutable($dateDepot);

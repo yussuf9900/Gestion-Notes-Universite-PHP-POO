@@ -4,17 +4,13 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Core\AbstractDocument;
-
-
 class CopieExamen extends AbstractDocument
 {
-
     private float $noteBrute;
     private float $noteFinale;
-
     private float $penaliteAppliquee = 0.0;
     private \DateTimeImmutable $dateLimite;
+
     public function __construct(
         \DateTimeInterface|string $dateLimite,
         float $noteBrute,
@@ -34,6 +30,7 @@ class CopieExamen extends AbstractDocument
     {
         return $this->noteBrute;
     }
+
     public function setNoteBrute(float $noteBrute): static
     {
         $this->validerNote($noteBrute, 'note brute');
@@ -62,7 +59,7 @@ class CopieExamen extends AbstractDocument
     {
         if ($penaliteAppliquee < 0.0) {
             throw new \InvalidArgumentException(
-                sprintf("La pénalité appliquée ne peut pas être négative (valeur reçue : %.2f).", $penaliteAppliquee)
+                sprintf("La penalite appliquee ne peut pas etre negative (valeur recue : %.2f).", $penaliteAppliquee)
             );
         }
         $this->penaliteAppliquee = $penaliteAppliquee;
@@ -108,7 +105,7 @@ class CopieExamen extends AbstractDocument
     {
         if ($note < 0.0 || $note > 20.0) {
             throw new \InvalidArgumentException(
-                sprintf("La %s doit être comprise entre 0 et 20 (valeur reçue : %.2f).", $nomChamp, $note)
+                sprintf("La %s doit etre comprise entre 0 et 20 (valeur recue : %.2f).", $nomChamp, $note)
             );
         }
     }
