@@ -4,31 +4,16 @@ declare(strict_types=1);
 
 namespace App\Dto;
 
+use App\Service\DateConverterService;
+use App\Validator\CopieValidator;
+
 readonly class SoumettreCopieDTO
 {
-    public float $noteBrute;
-    public \DateTimeImmutable $dateDepot;
-    public \DateTimeImmutable $dateLimite;
-
     public function __construct(
-        float|string|null $noteBrute,
-        \DateTimeInterface|string|null $dateDepot,
-        \DateTimeInterface|string|null $dateLimite
+        public float $noteBrute,
+        public \DateTimeImmutable $dateDepot,
+        public \DateTimeImmutable $dateLimite
     ) {
-        if ($noteBrute === null || $noteBrute === '' || !is_numeric($noteBrute)) {
-            throw new \InvalidArgumentException('La note brute doit etre une valeur numerique valide.');
-        }
-
-        $noteFloat = (float) $noteBrute;
-        if ($noteFloat < 0.0 || $noteFloat > 20.0) {
-            throw new \InvalidArgumentException(
-                sprintf('La note brute doit etre comprise entre 0 et 20 (valeur recue : %.2f).', $noteFloat)
-            );
-        }
-        $this->noteBrute = $noteFloat;
-
-        $this->dateDepot = $this->convertirDate($dateDepot, 'date de depot');
-        $this->dateLimite = $this->convertirDate($dateLimite, 'date limite');
     }
 
     public static function fromArray(array $data): self
@@ -37,7 +22,11 @@ readonly class SoumettreCopieDTO
         $dateDepot = $data['dateDepot'] ?? $data['date_depot'] ?? null;
         $dateLimite = $data['dateLimite'] ?? $data['date_limite'] ?? null;
 
-        return new self($noteBrute, $dateDepot, $dateLimite);
+        $note = CopieValidator::validerNoteBrute($noteBrute);
+        $depot = DateConverterService::convertir($dateDepot, 'date de depot');
+        $limite = DateConverterService::convertir($dateLimite, 'date limite');
+
+        return new self($note, $depot, $limite);
     }
 
     public function getNoteBrute(): float
@@ -62,34 +51,5 @@ readonly class SoumettreCopieDTO
             'dateDepot' => $this->dateDepot,
             'dateLimite' => $this->dateLimite,
         ];
-    }
-
-    private function convertirDate(\DateTimeInterface|string|null $date, string $nomChamp): \DateTimeImmutable
-    {
-        if ($date === null || $date === '') {
-            throw new \InvalidArgumentException(sprintf("Le champ '%s' est obligatoire.", $nomChamp));
-        }
-
-        if ($date instanceof \DateTimeImmutable) {
-            return $date;
-        }
-
-        if ($date instanceof \DateTime) {
-            return \DateTimeImmutable::createFromMutable($date);
-        }
-
-        if (is_string($date)) {
-            try {
-                return new \DateTimeImmutable($date);
-            } catch (\Exception $e) {
-                throw new \InvalidArgumentException(
-                    sprintf("Format de date invalide pour '%s' : %s", $nomChamp, $e->getMessage())
-                );
-            }
-        }
-
-        throw new \InvalidArgumentException(
-            sprintf("Le champ '%s' doit etre une chaine de caracteres ou une instance de DateTimeInterface.", $nomChamp)
-        );
     }
 }

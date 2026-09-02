@@ -5,6 +5,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Dto\SoumettreCopieDTO;
+use App\Service\DateConverterService;
+use App\Validator\CopieValidator;
 
 $passed = 0;
 $failed = 0;
@@ -21,7 +23,7 @@ function assertCondition(bool $condition, string $testName): void
     }
 }
 
-echo "=== Suite de Tests — Partie 4 : SoumettreCopieDTO ===\n\n";
+echo "=== Suite de Tests — Partie 4 : SoumettreCopieDTO, Validator & DateConverterService ===\n\n";
 
 try {
     $dateDepot = new \DateTimeImmutable('2026-06-20 10:00:00');
@@ -32,7 +34,11 @@ try {
     assertCondition($dto1->getDateDepot() === $dateDepot, "Conservation de l'instance dateDepot");
     assertCondition($dto1->getDateLimite() === $dateLimite, "Conservation de l'instance dateLimite");
 
-    $dto2 = new SoumettreCopieDTO('18.25', '2026-06-21 14:00:00', '2026-06-21 16:00:00');
+    $dto2 = SoumettreCopieDTO::fromArray([
+        'noteBrute' => '18.25',
+        'dateDepot' => '2026-06-21 14:00:00',
+        'dateLimite' => '2026-06-21 16:00:00',
+    ]);
     assertCondition($dto2->getNoteBrute() === 18.25, "Conversion automatique de note brute sous forme de chaine ('18.25' -> 18.25)");
     assertCondition($dto2->getDateDepot()->format('Y-m-d H:i:s') === '2026-06-21 14:00:00', "Conversion de dateDepot sous forme de chaine en DateTimeImmutable");
     assertCondition($dto2->getDateLimite()->format('Y-m-d H:i:s') === '2026-06-21 16:00:00', "Conversion de dateLimite sous forme de chaine en DateTimeImmutable");
@@ -80,7 +86,11 @@ try {
 
     $caughtNonNumericNote = false;
     try {
-        new SoumettreCopieDTO('invalide_note', '2026-06-20 10:00:00', '2026-06-20 12:00:00');
+        SoumettreCopieDTO::fromArray([
+            'noteBrute' => 'invalide_note',
+            'dateDepot' => '2026-06-20 10:00:00',
+            'dateLimite' => '2026-06-20 12:00:00',
+        ]);
     } catch (\InvalidArgumentException $e) {
         $caughtNonNumericNote = true;
     }
@@ -88,7 +98,11 @@ try {
 
     $caughtNegativeNote = false;
     try {
-        new SoumettreCopieDTO(-2.5, '2026-06-20 10:00:00', '2026-06-20 12:00:00');
+        SoumettreCopieDTO::fromArray([
+            'noteBrute' => -2.5,
+            'dateDepot' => '2026-06-20 10:00:00',
+            'dateLimite' => '2026-06-20 12:00:00',
+        ]);
     } catch (\InvalidArgumentException $e) {
         $caughtNegativeNote = true;
     }
@@ -96,7 +110,11 @@ try {
 
     $caughtOverflowNote = false;
     try {
-        new SoumettreCopieDTO(20.5, '2026-06-20 10:00:00', '2026-06-20 12:00:00');
+        SoumettreCopieDTO::fromArray([
+            'noteBrute' => 20.5,
+            'dateDepot' => '2026-06-20 10:00:00',
+            'dateLimite' => '2026-06-20 12:00:00',
+        ]);
     } catch (\InvalidArgumentException $e) {
         $caughtOverflowNote = true;
     }
@@ -115,7 +133,11 @@ try {
 
     $caughtInvalidDateDepot = false;
     try {
-        new SoumettreCopieDTO(15.0, 'chaine-date-totalement-invalide', '2026-06-20 12:00:00');
+        SoumettreCopieDTO::fromArray([
+            'noteBrute' => 15.0,
+            'dateDepot' => 'chaine-date-totalement-invalide',
+            'dateLimite' => '2026-06-20 12:00:00',
+        ]);
     } catch (\InvalidArgumentException $e) {
         $caughtInvalidDateDepot = true;
     }
@@ -134,11 +156,21 @@ try {
 
     $caughtInvalidDateLimite = false;
     try {
-        new SoumettreCopieDTO(15.0, '2026-06-20 10:00:00', 'format-date-incorrect');
+        SoumettreCopieDTO::fromArray([
+            'noteBrute' => 15.0,
+            'dateDepot' => '2026-06-20 10:00:00',
+            'dateLimite' => 'format-date-incorrect',
+        ]);
     } catch (\InvalidArgumentException $e) {
         $caughtInvalidDateLimite = true;
     }
     assertCondition($caughtInvalidDateLimite, "Rejet avec InvalidArgumentException si format dateLimite invalide");
+
+    $validatorNote = CopieValidator::validerNoteBrute('17.5');
+    assertCondition($validatorNote === 17.5, "CopieValidator::validerNoteBrute() convertit correctement une note valide");
+
+    $dateConv = DateConverterService::convertir('2026-09-01 08:00:00');
+    assertCondition($dateConv instanceof \DateTimeImmutable, "DateConverterService::convertir() retourne une instance de DateTimeImmutable");
 
     $forbiddenMethods = ['save', 'persist', 'insert', 'calculerNote', 'calculerPenalite', 'render', 'toHtml'];
     $hasForbiddenMethod = false;
@@ -150,17 +182,25 @@ try {
     }
     assertCondition(!$hasForbiddenMethod, "SoumettreCopieDTO ne contient aucune methode de persistance, de calcul ou de rendu HTML");
 
-    $dtoFileContent = file_get_contents(__DIR__ . '/../src/Dto/SoumettreCopieDTO.php');
-    $lines = explode("\n", $dtoFileContent);
-    $hasComments = false;
-    foreach ($lines as $line) {
-        $trimmed = trim($line);
-        if (str_starts_with($trimmed, '//') || str_starts_with($trimmed, '#') || str_starts_with($trimmed, '/*') || str_starts_with($trimmed, '*')) {
-            $hasComments = true;
-            break;
+    $filesToCheck = [
+        __DIR__ . '/../src/Dto/SoumettreCopieDTO.php',
+        __DIR__ . '/../src/Validator/CopieValidator.php',
+        __DIR__ . '/../src/Service/DateConverterService.php',
+    ];
+
+    $hasCommentsTotal = false;
+    foreach ($filesToCheck as $filePath) {
+        $content = file_get_contents($filePath);
+        $lines = explode("\n", $content);
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            if (str_starts_with($trimmed, '//') || str_starts_with($trimmed, '#') || str_starts_with($trimmed, '/*') || str_starts_with($trimmed, '*')) {
+                $hasCommentsTotal = true;
+                break 2;
+            }
         }
     }
-    assertCondition(!$hasComments, "Conformite de style : zero commentaire dans SoumettreCopieDTO.php");
+    assertCondition(!$hasCommentsTotal, "Conformite de style : zero commentaire dans DTO, Validator et DateConverterService");
 
 } catch (\Throwable $e) {
     echo "\033[31mErreur inattendue : " . $e->getMessage() . "\033[0m\n";
