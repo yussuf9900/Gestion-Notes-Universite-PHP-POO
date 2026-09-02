@@ -4,68 +4,63 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-class Query
+ abstract class Query
 {
-    private \PDO $pdo;
+    protected \PDO $pdo;
 
-    public function __construct(?\PDO $pdo = null)
+    protected function __construct(\PDO $pdo)
     {
-        $this->pdo = $pdo ?? Database::getConnection();
+        $this->pdo = $pdo;
     }
 
-    public function getPdo(): \PDO
-    {
-        return $this->pdo;
-    }
-
-    public function prepare(string $sql, array $options = []): \PDOStatement
+    protected function prepare(string $sql, array $options = []): \PDOStatement
     {
         return $this->pdo->prepare($sql, $options);
     }
 
-    public function query(string $sql): \PDOStatement
+    protected function query(string $sql): \PDOStatement
     {
         return $this->pdo->query($sql);
     }
 
-    public function executeQuery(string $sql, array $params = []): \PDOStatement
+    private function executeQuery(string $sql, array $params = []): \PDOStatement
     {
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         return $stmt;
     }
 
-    public function fetchAll(string $sql, array $params = []): array
+    protected function fetchAll(string $sql, array $params = []): array
     {
         return $this->executeQuery($sql, $params)->fetchAll();
     }
 
-    public function fetch(string $sql, array $params = []): array|false
+    protected function fetch(string $sql, array $params = []): array|false
     {
         return $this->executeQuery($sql, $params)->fetch();
     }
 
-    public function lastInsertId(?string $name = null): string|false
+    protected function lastInsertId(?string $name = null): string|false
     {
         return $this->pdo->lastInsertId($name);
     }
 
-    public function beginTransaction(): bool
+    protected function beginTransaction(): bool
     {
         return $this->pdo->beginTransaction();
     }
 
-    public function commit(): bool
+    protected function commit(): bool
     {
         return $this->pdo->commit();
     }
 
-    public function rollBack(): bool
+    protected function rollBack(): bool
     {
         return $this->pdo->rollBack();
     }
 
-    public function inTransaction(): bool
+    protected function inTransaction(): bool
     {
         return $this->pdo->inTransaction();
     }
