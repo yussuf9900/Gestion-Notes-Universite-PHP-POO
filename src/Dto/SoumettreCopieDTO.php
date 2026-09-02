@@ -12,12 +12,12 @@ readonly class SoumettreCopieDTO
 
     public function __construct(
         float $noteBrute,
-        \DateTimeImmutable $dateDepot,
-        \DateTimeImmutable $dateLimite
+        \DateTimeInterface|string $dateDepot,
+        \DateTimeInterface|string $dateLimite
     ) {
         $this->noteBrute = $noteBrute;
-        $this->dateDepot = $dateDepot;
-        $this->dateLimite = $dateLimite;
+        $this->dateDepot = $this->convertirDate($dateDepot, 'date de depot');
+        $this->dateLimite = $this->convertirDate($dateLimite, 'date limite');
     }
 
     public function getNoteBrute(): float
@@ -42,5 +42,30 @@ readonly class SoumettreCopieDTO
             'dateDepot' => $this->dateDepot,
             'dateLimite' => $this->dateLimite,
         ];
+    }
+
+    private function convertirDate(\DateTimeInterface|string $date, string $nomChamp): \DateTimeImmutable
+    {
+        if ($date instanceof \DateTimeImmutable) {
+            return $date;
+        }
+
+        if ($date instanceof \DateTime) {
+            return \DateTimeImmutable::createFromMutable($date);
+        }
+
+        if (is_string($date)) {
+            try {
+                return new \DateTimeImmutable($date);
+            } catch (\Exception $e) {
+                throw new \InvalidArgumentException(
+                    sprintf("Format de date invalide pour '%s' : %s", $nomChamp, $e->getMessage())
+                );
+            }
+        }
+
+        throw new \InvalidArgumentException(
+            sprintf("Le champ '%s' doit etre une chaine de caracteres ou une instance de DateTimeInterface.", $nomChamp)
+        );
     }
 }
