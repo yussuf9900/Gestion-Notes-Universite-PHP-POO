@@ -14,8 +14,8 @@ abstract class AbstractDocument
     protected \DateTimeImmutable $dateDepot;
 
   
-    public function __construct(
-        \DateTimeInterface|string $dateDepot = new DateTimeImmutable(),
+    protected function __construct(
+        \DateTimeInterface|string $dateDepot = new \DateTimeImmutable(),
         ?int $id = null
     ) {
         $this->setId($id);
