@@ -1,5 +1,15 @@
 # Journal des Versions (CHANGELOG)
 
+## [v0.6.0] - 2026-09-02
+### Partie 6 — Persistance des copies (Repository)
+- **Ajout** : Contrat d'interface `App\Repository\CopieExamenRepositoryInterface` (`src/Repository/CopieExamenRepositoryInterface.php`).
+- **Ajout** : Implémentation `App\Repository\PdoCopieExamenRepository` (`src/Repository/PdoCopieExamenRepository.php`) étendant `Query` et recevant `PDO` par constructeur.
+- **Fonctionnalités** :
+  - `save(CopieExamen $copie)` : persistance d'une nouvelle copie avec génération de clé primaire et mise à jour d'enregistrement existant via requêtes préparées.
+  - `findAll()` et `findById(int $id)` : consultation des copies avec méthode d'hydratation factorisée (`hydrate()`).
+- **Ajout** : Suite de tests automatisée `tests/test_partie6.php` (23 assertions validées).
+- **Règle** : Zéro commentaire dans l'intégralité du code source PHP.
+
 ## [v0.5.0] - 2026-09-02
 ### Partie 5 — Stratégie de calcul des notes
 - **Ajout** : Contrat `App\Service\CalculNoteInterface` (`src/Service/CalculNoteInterface.php`).
