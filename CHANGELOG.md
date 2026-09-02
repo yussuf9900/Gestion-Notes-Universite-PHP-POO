@@ -1,5 +1,19 @@
 # Journal des Versions (CHANGELOG)
 
+## [v0.10.0] - 2026-09-02
+### Partie 10 — Routeur HTTP fonctionnel & Point d'entrée
+- **Ajout** : Composant de routage `App\Router\Route` (`src/Router/Route.php`) avec compilation d'expressions régulières et extraction dynamique de paramètres d'URI.
+- **Ajout** : Gestionnaire de routes `App\Router\Router` (`src/Router/Router.php`) avec support fluide (`get()`, `post()`, `addRoute()`, `dispatch()`, `setNotFoundHandler()`).
+- **Configuration** : Point d'entrée unique `public/index.php` enregistrant les 4 routes clés de l'application :
+  - `GET /copies` : affichage de la liste des copies (`CopieExamenController::index`).
+  - `GET /copies/create` : formulaire de soumission (`CopieExamenController::create`).
+  - `POST /copies` : traitement de la soumission (`CopieExamenController::store`).
+  - `GET /copies/{id}` : détail d'une copie avec injection d'ID dynamique (`CopieExamenController::show`).
+  - `GET /` : redirection de courtoisie vers `/copies`.
+  - Gestion des routes non trouvées (erreur 404).
+- **Ajout** : Suite de tests automatisée `tests/test_partie10.php` (19 assertions validées).
+- **Règle** : Zéro commentaire dans l'intégralité du code source PHP.
+
 ## [v0.9.0] - 2026-09-02
 ### Partie 9 — Contrôleur MVC des copies
 - **Ajout** : Classe abstraite `App\Controller\BaseController` (`src/Controller/BaseController.php`) factorisant le rendu de vues avec layout et les redirections HTTP avec gestion SAPI propre.
