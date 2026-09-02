@@ -69,9 +69,8 @@ L'architecture respecte strictement les principes de séparation des préoccupat
 | **`database/`** | **Persistance & Schémas Relationnels** :<br>• `schema.sql` : scripts DDL (tables, contraintes, index)<br>• `init.php` : initialisation CLI et migrations | Isolé du Web, assure le versionnement et la reproductibilité de la structure de base de données. |
 | **`public/`** | **Point d'Entrée HTTP & Assets Web** :<br>• `index.php` : Front Controller unique<br>• `css/`, `js/`, `assets/` : ressources statiques | Unique zone exposée au serveur Web (`DocumentRoot`). Reçoit toute requête entrante et délègue au routeur. |
 | **`src/`** | **Code Source Applicatif (Namespace `App\`)** : | Organisation modulaire et typée respectant les principes SOLID et patrons de conception : |
-| ↳ `src/Database/` | **Gestionnaire de Persistance** :<br>• `Database.php` : gestionnaire de connexion PDO (Singleton) | Fournit l'accès technique unique à PostgreSQL de manière sécurisée et centralisée. |
 | ↳ `src/Entity/` | **Modèle de Domaine & Entités Métier** :<br>• `AbstractDocument.php`<br>• `CopieExamen.php` | Objets métier purs encapsulant les données du domaine, leurs propriétés, états et comportements intrinsèques. |
-| ↳ `src/Repository/` | **Accès aux Données & Persistance (DAL)** :<br>• `CopieRepository.php` | Isole l'écriture des requêtes SQL préparées et l'accès à PostgreSQL (*Repository Pattern*). |
+| ↳ `src/Repository/` | **Accès aux Données & Persistance (DAL)** :<br>• `Database.php` : connexion Singleton PDO<br>• `Query.php` : gestionnaire d'exécution SQL (`prepare`, `query`, `executeQuery`, `fetch`, etc.)<br>• `CopieRepository.php` : requêtes spécifiques aux copies | Isole l'accès technique et l'écriture des requêtes SQL préparées à PostgreSQL (*Repository Pattern*). |
 | ↳ `src/Dto/` | **Objets de Transfert de Données (DTO)** :<br>• `CopieDto.php` | Structures de données typées transportant les données saisies sans exposer les entités. |
 | ↳ `src/Validator/` | **Validation d'Intégrité & Conformité** :<br>• `CopieValidator.php` | Contrôle la validité des données (notes, dates, champs obligatoires). |
 | ↳ `src/Rule/` | **Règles Métier & Calculs de Pénalités** :<br>• `PenaltyRuleInterface.php`<br>• `FixedLatePenaltyRule.php`<br>• `DailyLatePenaltyRule.php`<br>• `ZeroPenaltyRule.php` | Isole le calcul dynamique des pénalités selon le **Strategy Pattern** (Open/Closed Principle). |
@@ -179,8 +178,8 @@ Le schéma DDL est défini dans `database/schema.sql` :
 
 ### Q1. Quelle classe doit être responsable de la connexion ?
 - **Réponse & Justification** :
-  - La classe technique `App\Database\Database` (`src/Database/Database.php`).
-  - **Principe SRP (Single Responsibility Principle)** : La responsabilité d'instancier, de configurer (DSN, options, encodage) et de fournir l'objet `PDO` appartient à une classe dédiée de la couche d'infrastructure / base de données, et non aux entités métier (`CopieExamen`), aux validateurs ou aux contrôleurs.
+  - La classe technique `App\Repository\Database` (`src/Repository/Database.php`).
+  - **Principe SRP (Single Responsibility Principle)** : La responsabilité d'instancier, de configurer (DSN, options, encodage) et de fournir l'objet `PDO` appartient à une classe dédiée de la couche d'accès aux données / persistance, et non aux entités métier (`CopieExamen`), aux validateurs ou aux contrôleurs.
 
 ---
 
@@ -197,7 +196,7 @@ Le schéma DDL est défini dans `database/schema.sql` :
   - Les identifiants sensibles (hôte, port, nom de la base, utilisateur, mot de passe) doivent être stockés **hors du code source versionné**, dans un fichier d'environnement (`.env` ou variables système).
   - Le fichier `.env` est obligatoirement ajouté au `.gitignore` pour empêcher toute fuite sur un dépôt public ou distant.
   - Un fichier modèle `.env.example` sans données sensibles est versionné pour documenter les variables requises.
-  - Le fichier `config/database.php` charge dynamiquement ces valeurs d'environnement.
+  - Le fichier `config/database.php` charge dynamiquement ces valeurs d'environnement via `vlucas/phpdotenv` et `$_ENV`.
 
 ---
 
@@ -229,7 +228,7 @@ php tests/test_partie3.php
 - **`v0.0.0`** : Initialisation du dépôt Git.
 - **`v0.1.0`** : **Partie 1 — Préparation de l'application & Architecture** :
   - Mise en place de l'arborescence obligatoire (`database/`, `config/`, `public/`, `src/`, `templates/`).
-  - Découpage modulaire de `src/` (`Database/`, `Entity/`, `Repository/`, `Dto/`, `Validator/`, `Rule/`, `Controller/`).
+  - Découpage modulaire de `src/` (`Entity/`, `Repository/`, `Dto/`, `Validator/`, `Rule/`, `Controller/`).
   - Mise en place du Front Controller `public/index.php`.
   - Configuration de l'autoloading PSR-4 via Composer.
   - Réponses exhaustives aux 4 questions architecturales.
@@ -242,8 +241,14 @@ php tests/test_partie3.php
 - **`v0.3.0`** : **Partie 3 — Préparer la persistance** :
   - Script DDL `database/schema.sql` (table `copies`, types stricts, contraintes `CHECK`, index, données de test).
   - Isolation des identifiants sensibles via `.env` (exclu par `.gitignore`), modèle `.env.example`, et chargement dynamique par `config/database.php`.
-  - Classe technique `App\Database\Database` (Singleton PDO avec `ERRMODE_EXCEPTION`, `FETCH_ASSOC`, requêtes préparées non émulées).
+  - Classe technique `App\Repository\Database` (Singleton PDO avec `ERRMODE_EXCEPTION`, `FETCH_ASSOC`, requêtes préparées non émulées).
   - Script CLI d'initialisation `database/init.php`.
   - Suite de tests unitaires automatisée `tests/test_partie3.php` validant la connexion, les requêtes préparées et les contraintes `CHECK`.
   - Réponses complètes aux 4 questions théoriques de la Partie 3.
   - Respect strict de la règle : zéro commentaire dans le code source PHP et SQL.
+- **`v0.3.1`** : **Évolution de la Couche Repository & Gestion des Requêtes** :
+  - Migration de la configuration vers `$_ENV` avec la bibliothèque `vlucas/phpdotenv`.
+  - Déplacement de `Database.php` dans `src/Repository/` (`App\Repository\Database`).
+  - Création de `src/Repository/Query.php` (`App\Repository\Query`) pour centraliser l'exécution des requêtes SQL (`prepare`, `query`, `executeQuery`, `fetchAll`, `fetch`, `lastInsertId`, transactions).
+  - Adaptation de `database/init.php` et `tests/test_partie3.php` pour valider `Query` et `Database`.
+  - Respect absolu de la consigne : zéro commentaire dans le code source.

@@ -1,5 +1,13 @@
 # Journal des Versions (CHANGELOG)
 
+## [v0.3.1] - 2026-09-02
+### Évolution de la Couche Repository & Gestion des Requêtes
+- **Ajout** : Dépendance `vlucas/phpdotenv` et migration complète vers `$_ENV` dans `config/database.php` (abandon de `getenv()`).
+- **Refactorisation** : Déplacement de `Database` vers `App\Repository\Database` (`src/Repository/Database.php`) pour centraliser la couche d'accès aux données.
+- **Ajout** : Classe `App\Repository\Query` (`src/Repository/Query.php`) offrant des méthodes d'exécution de requêtes sécurisées (`prepare`, `query`, `executeQuery`, `fetchAll`, `fetch`, `lastInsertId`, transactions).
+- **Mise à jour** : `database/init.php` et `tests/test_partie3.php` adaptés pour exploiter `App\Repository\Database` et `App\Repository\Query`.
+- **Règle** : Zéro commentaire dans l'intégralité du code source PHP et SQL.
+
 ## [v0.3.0] - 2026-09-02
 ### Partie 3 — Préparer la persistance
 - **Ajout** : Script DDL `database/schema.sql` définissant la table `copies` avec contraintes d'intégrité `CHECK` sur les notes et pénalités.

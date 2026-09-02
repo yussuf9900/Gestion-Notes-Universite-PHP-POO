@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use App\Database\Database;
+use App\Repository\Database;
+use App\Repository\Query;
 
 $config = require __DIR__ . '/../config/database.php';
 
@@ -29,8 +30,8 @@ try {
     $pdo->exec($sql);
     echo "Schema 'schema.sql' execute avec succes.\n";
 
-    $query = $pdo->query("SELECT id, etudiant_nom, note_brute, penalite_appliquee, note_finale FROM copies ORDER BY id ASC");
-    $rows = $query->fetchAll();
+    $queryManager = new Query($pdo);
+    $rows = $queryManager->fetchAll("SELECT id, etudiant_nom, note_brute, penalite_appliquee, note_finale FROM copies ORDER BY id ASC");
 
     echo "Copies enregistrees :\n";
     foreach ($rows as $row) {

@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use App\Database\Database;
+use App\Repository\Database;
+use App\Repository\Query;
 
 $passed = 0;
 $failed = 0;
@@ -21,21 +22,22 @@ function assertCondition(bool $condition, string $testName): void
     }
 }
 
-echo "=== Suite de Tests — Partie 3 : Preparer la Persistance ===\n\n";
+echo "=== Suite de Tests — Partie 3 : Repository, Database & Query ===\n\n";
 
 try {
     $db1 = Database::getConnection();
     $db2 = Database::getConnection();
-    assertCondition($db1 instanceof PDO, "Connexion PDO instanciee");
-    assertCondition($db1 === $db2, "Pattern Singleton : instance unique de connexion");
+    assertCondition($db1 instanceof PDO, "Connexion PDO instanciee via Database::getConnection()");
+    assertCondition($db1 === $db2, "Pattern Singleton : instance unique de connexion PDO");
 
-    $stmt = $db1->prepare("
+    $query = new Query();
+    assertCondition($query->getPdo() === $db1, "Query utilise l'instance Singleton PDO par defaut");
+
+    $stmt = $query->executeQuery("
         INSERT INTO copies (date_depot, date_limite, note_brute, penalite_appliquee, note_finale, etudiant_nom, matricule, matiere)
         VALUES (:date_depot, :date_limite, :note_brute, :penalite_appliquee, :note_finale, :etudiant_nom, :matricule, :matiere)
         RETURNING id
-    ");
-
-    $stmt->execute([
+    ", [
         'date_depot' => '2026-06-20 11:30:00',
         'date_limite' => '2026-06-20 12:00:00',
         'note_brute' => 18.00,
@@ -47,21 +49,27 @@ try {
     ]);
 
     $insertedId = (int) $stmt->fetchColumn();
-    assertCondition($insertedId > 0, "Insertion reussie via requete preparee (ID: {$insertedId})");
+    assertCondition($insertedId > 0, "Query::executeQuery() insertion reussie (ID: {$insertedId})");
 
-    $selectStmt = $db1->prepare("SELECT * FROM copies WHERE id = :id");
-    $selectStmt->execute(['id' => $insertedId]);
-    $row = $selectStmt->fetch();
+    $row = $query->fetch("SELECT * FROM copies WHERE id = :id", ['id' => $insertedId]);
+    assertCondition($row !== false && (float) $row['note_finale'] === 18.00, "Query::fetch() lecture conforme de l'enregistrement");
 
-    assertCondition($row !== false && (float) $row['note_finale'] === 18.00, "Lecture conforme de l'enregistrement cree");
+    $allRows = $query->fetchAll("SELECT * FROM copies WHERE matricule = :matricule", ['matricule' => 'ETU003']);
+    assertCondition(is_array($allRows) && count($allRows) >= 1, "Query::fetchAll() retourne les enregistrements sous forme de tableau");
+
+    $queryDirectStmt = $query->query("SELECT COUNT(*) AS total FROM copies");
+    $totalCount = (int) $queryDirectStmt->fetchColumn();
+    assertCondition($totalCount > 0, "Query::query() execution directe reussie (Total copies: {$totalCount})");
+
+    $prepStmt = $query->prepare("SELECT id, etudiant_nom FROM copies WHERE id = :id");
+    assertCondition($prepStmt instanceof PDOStatement, "Query::prepare() retourne une instance valide de PDOStatement");
 
     $checkViolation = false;
     try {
-        $invalidStmt = $db1->prepare("
+        $query->executeQuery("
             INSERT INTO copies (date_depot, date_limite, note_brute, penalite_appliquee, note_finale)
             VALUES ('2026-06-20 10:00:00', '2026-06-20 12:00:00', 25.00, 0.00, 25.00)
         ");
-        $invalidStmt->execute();
     } catch (\PDOException $e) {
         $checkViolation = true;
     }

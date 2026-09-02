@@ -2,23 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Database;
-
-use PDO;
-use PDOException;
+namespace App\Repository;
 
 final class Database
 {
-    private static ?PDO $instance = null;
+    private static ?\PDO $instance = null;
 
     private function __construct()
     {
     }
 
-    public static function getConnection(?array $customConfig = null): PDO
+    public static function getConnection(?array $customConfig = null): \PDO
     {
         if (self::$instance === null) {
-            $config = $customConfig ?? require __DIR__ . '/../../config/database.php';
+            $config = $customConfig ?? require dirname(__DIR__, 2) . '/config/database.php';
 
             $dsn = sprintf(
                 '%s:host=%s;port=%d;dbname=%s',
@@ -29,14 +26,14 @@ final class Database
             );
 
             try {
-                self::$instance = new PDO(
+                self::$instance = new \PDO(
                     $dsn,
                     $config['user'],
                     $config['password'],
                     $config['options'] ?? []
                 );
-            } catch (PDOException $e) {
-                throw new PDOException("Erreur de connexion a la base de donnees : " . $e->getMessage(), (int) $e->getCode(), $e);
+            } catch (\PDOException $e) {
+                throw new \PDOException("Erreur de connexion a la base de donnees : " . $e->getMessage(), (int) $e->getCode(), $e);
             }
         }
 
