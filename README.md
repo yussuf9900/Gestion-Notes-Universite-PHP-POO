@@ -1,6 +1,6 @@
 # Système de Notation Universitaire (PHP 8 / PostgreSQL / POO)
 
-Application web d'automatisation du traitement des copies d'examen, du contrôle de validité des données et du calcul dynamique des pénalités de retard selon les règlements universitaires.
+Application d'automatisation du traitement des copies d'examen, du contrôle de validité des données et du calcul dynamique des pénalités de retard selon les règlements universitaires.
 
 ---
 
@@ -11,10 +11,10 @@ Le dossier `vendor/` contient l'ensemble des bibliothèques tierces et fichiers 
 
 ## 2. Commit vs Tag
 - Un **commit** enregistre un ensemble de modifications précises à un instant $T$ dans l'historique d'une branche.
-- Un **tag** (étiquette) est un pointeur immuable sur un commit spécifique marquant un jalon important ou une version publiable (ex: `v0.1.0`, `v1.0.0`).
+- Un **tag** (étiquette) est un pointeur immuable sur un commit spécifique marquant un jalon important ou une version publiable (ex: `v0.1.0`, `v0.2.0`, `v0.3.0`).
 
 ## 3. Pourquoi `main` doit rester stable ?
-La branche `main` représente le code de production validé et directement déployable. Tous les développements s'effectuent sur des branches isolées (`partie/01-initialisation`, etc.) et ne sont fusionnés sur `main` qu'une fois testés, fonctionnels et vérifiés.
+La branche `main` représente le code de production validé et directement déployable. Tous les développements s'effectuent sur des branches isolées (`partie/01-initialisation`, `partie/02-documents`, `partie/03-database`) et ne sont fusionnés sur `main` qu'une fois testés, fonctionnels et vérifiés.
 
 **À retenir :**
 > - `vendor/` = dépendances externes & code généré, non versionné.
@@ -37,21 +37,21 @@ Placer le point d'entrée dans un dossier dédié `public/` répond à un impér
 ---
 
 ### Q2. Pourquoi toutes les requêtes devraient-elles passer par ce fichier (`public/index.php`) ?
-Cette approche implémente le patron de conception **Front Controller** (Point d'Entrée Unique) et apporte des avantages déterminants :
+Cette approche implémente le patron de conception **Front Controller** (Point d'Entrée Unique) :
 1. **Initialisation centralisée et unique** :
    - Chargement automatique des classes via l'autoloader Composer PSR-4 (`require_once 'vendor/autoload.php'`).
    - Configuration globale de l'application et gestion uniforme des exceptions et erreurs HTTP (404, 500).
 2. **Contrôle transversal et sécurité** :
    - Assainissement des données entrantes, gestion globale des sessions et sécurité applicative appliqués systématiquement avant tout traitement métier.
 3. **Découplage des URL et de l'arborescence physique (Routage)** :
-   - Les URL sont propres, RESTful et significatives (`/`, `/copies`, `/copie/create`), gérées dynamiquement par un **Routeur** (`App\Core\Router`) sans être dépendantes des chemins de fichiers réels sur le disque.
+   - Les URL sont propres, RESTful et significatives (`/`, `/copies`, `/copie/create`), gérées dynamiquement par un **Routeur** (`App\Router\Router`) sans être dépendantes des chemins de fichiers réels sur le disque.
 
 ---
 
 ### Q3. Quels éléments ne devraient jamais se trouver dans le dossier `public` ?
 Le dossier `public/` ne doit contenir **strictement que les ressources publiques statiques** et le fichier d'amorçage `index.php`. Ne doivent **JAMAIS** s'y trouver :
 - Les **fichiers de configuration et mots de passe** (`config/database.php`, `.env`, clés privées, certificats).
-- Le **code source applicatif et métier** (`src/` : modèles, entités, règles, validateurs, contrôleurs).
+- Le **code source applicatif et métier** (`src/` : modèles, entités, règles, validateurs, contrôleurs, database).
 - Les **scripts de base de données** (`database/` : schémas DDL, migrations, sauvegardes SQL).
 - Les **fichiers de gabarits et vues serveur** (`templates/`).
 - Les **dépendances Composer** (`vendor/`, `composer.json`, `composer.lock`).
@@ -65,18 +65,18 @@ L'architecture respecte strictement les principes de séparation des préoccupat
 
 | Dossier | Responsabilité & Contenu | Justification Architecturale |
 | :--- | :--- | :--- |
-| **`config/`** | **Configuration isolée** :<br>• `app.php` : paramètres généraux et environnement<br>• `database.php` : identifiants et configuration PostgreSQL | Découplage fort : les informations de connexion et de configuration ne sont jamais codées en dur dans les classes métier. |
-| **`database/`** | **Persistance & Schémas Relationnels** :<br>• `schema.sql` : scripts DDL (tables, contraintes, types)<br>• `migrate.php` : migrations et initialisation CLI | Isolé du Web, assure le versionnement et la reproductibilité de la structure de base de données. |
+| **`config/`** | **Configuration isolée** :<br>• `database.php` : chargement dynamique des paramètres de connexion PostgreSQL | Découplage fort : les informations de connexion et de configuration ne sont jamais codées en dur dans les classes métier. |
+| **`database/`** | **Persistance & Schémas Relationnels** :<br>• `schema.sql` : scripts DDL (tables, contraintes, index)<br>• `init.php` : initialisation CLI et migrations | Isolé du Web, assure le versionnement et la reproductibilité de la structure de base de données. |
 | **`public/`** | **Point d'Entrée HTTP & Assets Web** :<br>• `index.php` : Front Controller unique<br>• `css/`, `js/`, `assets/` : ressources statiques | Unique zone exposée au serveur Web (`DocumentRoot`). Reçoit toute requête entrante et délègue au routeur. |
 | **`src/`** | **Code Source Applicatif (Namespace `App\`)** : | Organisation modulaire et typée respectant les principes SOLID et patrons de conception : |
-| ↳ `src/Core/` | **Noyau Technique & Infrastructure** :<br>• `Router.php` : analyse d'URL et aiguillage des routes<br>• `Database.php` : gestionnaire de connexion PDO (Singleton) | Fournit les composants techniques transversaux et réutilisables nécessaires au fonctionnement applicatif. |
-| ↳ `src/Entity/` | **Modèle de Domaine & Entités Métier** :<br>• `Copie.php`, `Etudiant.php`, etc. | Objets métier purs (POPO) encapsulant les données du domaine, leurs propriétés, états et comportements intrinsèques. |
-| ↳ `src/Repository/` | **Accès aux Données & Persistance (DAL)** :<br>• `CopieRepository.php`, etc. | Isole l'écriture des requêtes SQL et l'accès à PostgreSQL. Fait le pont entre les tables SQL et les entités PHP (*Repository Pattern*). |
-| ↳ `src/Dto/` | **Objets de Transfert de Données (DTO)** :<br>• `CopieDto.php`, etc. | Structures de données typées transportant les données entre l'interface utilisateur, les contrôleurs et la logique métier sans exposer les entités. |
-| ↳ `src/Validator/` | **Validation d'Intégrité & Conformité** :<br>• `CopieValidator.php` | Contrôle la validité des données (note comprise entre 0 et 20, formats de dates, champs obligatoires, cohérence temporelle). |
-| ↳ `src/Rule/` | **Règles Métier & Calculs de Pénalités** :<br>• `PenaltyRuleInterface.php`<br>• `FixedLatePenaltyRule.php`<br>• `DailyLatePenaltyRule.php`<br>• `ZeroPenaltyRule.php` | Isole le calcul dynamique des pénalités selon le **Strategy Pattern** pour garantir l'Open/Closed Principle (OCP) : ajout de règles sans modifier l'existant. |
-| ↳ `src/Controller/` | **Orchestration des Flux Applicatifs** :<br>• `BaseController.php`<br>• `HomeController.php`<br>• `CopieController.php` | Réceptionne les requêtes HTTP, sollicite les validateurs/DTOs, orchestre les entités et repositories, et transmet les données aux vues. |
-| **`templates/`** | **Présentation & Vues Serveur** :<br>• `layout/header.php` & `footer.php`<br>• `home/index.php`<br>• `copies/index.php`, `create.php`, `show.php` | Gabarits HTML5 / PHP purs protégés hors de la racine Web pour un rendu sécurisé. |
+| ↳ `src/Database/` | **Gestionnaire de Persistance** :<br>• `Database.php` : gestionnaire de connexion PDO (Singleton) | Fournit l'accès technique unique à PostgreSQL de manière sécurisée et centralisée. |
+| ↳ `src/Entity/` | **Modèle de Domaine & Entités Métier** :<br>• `AbstractDocument.php`<br>• `CopieExamen.php` | Objets métier purs encapsulant les données du domaine, leurs propriétés, états et comportements intrinsèques. |
+| ↳ `src/Repository/` | **Accès aux Données & Persistance (DAL)** :<br>• `CopieRepository.php` | Isole l'écriture des requêtes SQL préparées et l'accès à PostgreSQL (*Repository Pattern*). |
+| ↳ `src/Dto/` | **Objets de Transfert de Données (DTO)** :<br>• `CopieDto.php` | Structures de données typées transportant les données saisies sans exposer les entités. |
+| ↳ `src/Validator/` | **Validation d'Intégrité & Conformité** :<br>• `CopieValidator.php` | Contrôle la validité des données (notes, dates, champs obligatoires). |
+| ↳ `src/Rule/` | **Règles Métier & Calculs de Pénalités** :<br>• `PenaltyRuleInterface.php`<br>• `FixedLatePenaltyRule.php`<br>• `DailyLatePenaltyRule.php`<br>• `ZeroPenaltyRule.php` | Isole le calcul dynamique des pénalités selon le **Strategy Pattern** (Open/Closed Principle). |
+| ↳ `src/Controller/` | **Orchestration des Flux Applicatifs** :<br>• `BaseController.php`<br>• `HomeController.php`<br>• `CopieController.php` | Réceptionne les requêtes HTTP, orchestre les entités et repositories, et transmet les données aux vues. |
+| **`templates/`** | **Présentation & Vues Serveur** :<br>• `layout/header.php` & `footer.php`<br>• `home/index.php`<br>• `copies/` | Gabarits HTML5 / PHP purs protégés hors de la racine Web pour un rendu sécurisé. |
 
 ---
 
@@ -84,13 +84,13 @@ L'architecture respecte strictement les principes de séparation des préoccupat
 
 ## 1. Modélisation & Principes de Conception POO
 
-Dans cette partie, la modélisation métier sépare le socle abstrait technique et l'entité concrète du domaine :
-- **Classe abstraite de base** : `App\Core\AbstractDocument` (`src/Core/AbstractDocument.php`)
+La modélisation métier sépare le socle abstrait et l'entité concrète du domaine :
+- **Classe abstraite de base** : `App\Entity\AbstractDocument` (`src/Entity/AbstractDocument.php`)
 - **Entité concrète** : `App\Entity\CopieExamen` (`src/Entity/CopieExamen.php`)
 
 ```mermaid
 classDiagram
-    namespace App_Core {
+    namespace App_Entity {
         class AbstractDocument {
             <<abstract>>
             #?int id
@@ -98,17 +98,15 @@ classDiagram
             +getId() ?int
             +setId(?int id) static
             +getDateDepot() DateTimeImmutable
-            +setDateDepot(DateTimeImmutable|string dateDepot) static
+            +setDateDepot(DateTimeInterface|string dateDepot) static
         }
-    }
 
-    namespace App_Entity {
         class CopieExamen {
             -float noteBrute
             -float noteFinale
             -float penaliteAppliquee
             -DateTimeImmutable dateLimite
-            +__construct(DateTimeImmutable|string dateLimite, float noteBrute, float noteFinale, float penaliteAppliquee, DateTimeImmutable|string dateDepot, ?int id)
+            +__construct(DateTimeInterface|string dateLimite, float noteBrute, float noteFinale, float penaliteAppliquee, DateTimeInterface|string dateDepot, ?int id)
             +getNoteBrute() float
             +setNoteBrute(float noteBrute) static
             +getNoteFinale() float
@@ -116,7 +114,7 @@ classDiagram
             +getPenaliteAppliquee() float
             +setPenaliteAppliquee(float penalite) static
             +getDateLimite() DateTimeImmutable
-            +setDateLimite(DateTimeImmutable|string dateLimite) static
+            +setDateLimite(DateTimeInterface|string dateLimite) static
             +isEnRetard() bool
             +calculerRetardJours() int
             -validerNote(float note, string nomChamp) void
@@ -132,7 +130,7 @@ classDiagram
 
 ### Q1. Quelle relation avez-vous établie entre les deux classes ?
 - **Relation d'Héritage (Spécialisation / Généralisation)** : `CopieExamen extends AbstractDocument`.
-- **Justification** : Une copie d'examen *est un* (`is-a`) document universitaire. Elle hérite des attributs communs (`$id`, `$dateDepot`) définis dans la classe mère `App\Core\AbstractDocument` et y ajoute ses caractéristiques propres (`$noteBrute`, `$noteFinale`, `$penaliteAppliquee`, `$dateLimite`).
+- **Justification** : Une copie d'examen *est un* (`is-a`) document universitaire. Elle hérite des attributs communs (`$id`, `$dateDepot`) définis dans la classe mère `App\Entity\AbstractDocument` et y ajoute ses caractéristiques propres (`$noteBrute`, `$noteFinale`, `$penaliteAppliquee`, `$dateLimite`).
 
 ---
 
@@ -158,16 +156,70 @@ classDiagram
 
 ---
 
-## 3. Démarrage Rapide & Tests
+# Partie 3 — Préparer la Persistance
 
-### 1. Démarrer le serveur de développement local
+## 1. Modélisation de la Persistance & Structure SQL
+
+Le schéma DDL est défini dans `database/schema.sql` :
+- **Table `copies`** :
+  - `id SERIAL PRIMARY KEY` : identifiant auto-incrémenté.
+  - `date_depot TIMESTAMP NOT NULL` : date et heure réelles du dépôt.
+  - `date_limite TIMESTAMP NOT NULL` : date et heure limites de rendu.
+  - `note_brute NUMERIC(4, 2) NOT NULL CHECK (note_brute >= 0.0 AND note_brute <= 20.0)` : validation de l'intervalle $[0, 20]$.
+  - `penalite_appliquee NUMERIC(4, 2) NOT NULL DEFAULT 0.0 CHECK (penalite_appliquee >= 0.0)` : pénalité positive ou nulle.
+  - `note_finale NUMERIC(4, 2) NOT NULL CHECK (note_finale >= 0.0 AND note_finale <= 20.0)` : note finale plancher garantie.
+  - `etudiant_nom`, `matricule`, `matiere` : métadonnées étudiantes et pédagogiques.
+  - `created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP` : horodatage système.
+- **Index de performance** : `idx_copies_date_depot` et `idx_copies_date_limite`.
+- **Données d'insertion de test** : 1 copie à l'heure ($16.50/20$, pénalité $0.00$), 1 copie en retard ($14.00/20$, pénalité $2.00$, note finale $12.00$).
+
+---
+
+## 2. Réponses aux Questions de la Partie 3
+
+### Q1. Quelle classe doit être responsable de la connexion ?
+- **Réponse & Justification** :
+  - La classe technique `App\Database\Database` (`src/Database/Database.php`).
+  - **Principe SRP (Single Responsibility Principle)** : La responsabilité d'instancier, de configurer (DSN, options, encodage) et de fournir l'objet `PDO` appartient à une classe dédiée de la couche d'infrastructure / base de données, et non aux entités métier (`CopieExamen`), aux validateurs ou aux contrôleurs.
+
+---
+
+### Q2. Faut-il créer une nouvelle connexion pour chaque requête SQL ?
+- **Réponse & Justification** :
+  - **Non, absolument pas.**
+  - Ouvrir une nouvelle connexion à chaque requête SQL entraîne un surcoût majeur (*overhead*) : négociation TCP/socket, authentification PostgreSQL, allocation mémoire côté SGBD.
+  - La bonne pratique consiste à réutiliser une **connexion unique par cycle de vie d'exécution (Singleton / Instance partagée)**.
+
+---
+
+### Q3. Où placer les identifiants de connexion ?
+- **Réponse & Justification** :
+  - Les identifiants sensibles (hôte, port, nom de la base, utilisateur, mot de passe) doivent être stockés **hors du code source versionné**, dans un fichier d'environnement (`.env` ou variables système).
+  - Le fichier `.env` est obligatoirement ajouté au `.gitignore` pour empêcher toute fuite sur un dépôt public ou distant.
+  - Un fichier modèle `.env.example` sans données sensibles est versionné pour documenter les variables requises.
+  - Le fichier `config/database.php` charge dynamiquement ces valeurs d'environnement.
+
+---
+
+### Q4. Pourquoi utiliser PDO (*PHP Data Objects*) ?
+- **Réponse & Justification** :
+  1. **Abstraction du SGBD** : Fournit une interface unifiée et orientée objet commune à PostgreSQL, MySQL, SQLite, facilitant toute évolution ou migration d'infrastructure.
+  2. **Sécurité native contre les Injections SQL** : Support complet des **requêtes préparées** (`$pdo->prepare()` + `$stmt->execute()`) qui séparent strictement la structure SQL des données utilisateurs.
+  3. **Gestion moderne des erreurs** : Mode `PDO::ERRMODE_EXCEPTION` permettant d'intercepter proprement les erreurs SQL via des blocs `try/catch (PDOException $e)`.
+  4. **Support transactionnel ACID** : Méthodes `beginTransaction()`, `commit()`, et `rollBack()` pour garantir l'intégrité et la cohérence des opérations.
+
+---
+
+## 3. Démarrage Rapide & Tests CLI
+
+### 1. Initialiser la base de données PostgreSQL
 ```bash
-php -S localhost:8000 -t public
+php database/init.php
 ```
 
-### 2. Exécuter la suite de tests de la Partie 2
+### 2. Exécuter la suite de tests automatisée de la Partie 3
 ```bash
-php tests/test_partie2.php
+php tests/test_partie3.php
 ```
 
 ---
@@ -177,16 +229,21 @@ php tests/test_partie2.php
 - **`v0.0.0`** : Initialisation du dépôt Git.
 - **`v0.1.0`** : **Partie 1 — Préparation de l'application & Architecture** :
   - Mise en place de l'arborescence obligatoire (`database/`, `config/`, `public/`, `src/`, `templates/`).
-  - Découpage modulaire de `src/` (`Core/`, `Entity/`, `Repository/`, `Dto/`, `Validator/`, `Rule/`, `Controller/`).
-  - Mise en place du Front Controller `public/index.php` et du routeur `src/Core/Router.php`.
+  - Découpage modulaire de `src/` (`Database/`, `Entity/`, `Repository/`, `Dto/`, `Validator/`, `Rule/`, `Controller/`).
+  - Mise en place du Front Controller `public/index.php`.
   - Configuration de l'autoloading PSR-4 via Composer.
-  - Vues d'affichage et page d'accueil avec design CSS moderne.
   - Réponses exhaustives aux 4 questions architecturales.
 - **`v0.2.0`** : **Partie 2 — Représenter les documents universitaires** :
-  - Création de la classe de base abstraite `App\Core\AbstractDocument` avec encapsulation de `$id` (nullable) et `$dateDepot` (`DateTimeImmutable`).
+  - Création de la classe de base abstraite `App\Entity\AbstractDocument` avec encapsulation de `$id` (nullable) et `$dateDepot` (`DateTimeImmutable`).
   - Création de l'entité concrète `App\Entity\CopieExamen extends AbstractDocument` avec gestion de `$noteBrute`, `$noteFinale`, `$penaliteAppliquee`, `$dateLimite`.
   - Validation stricte des notes dans l'intervalle $[0, 20]$ (rejet avec `InvalidArgumentException`).
-  - Respect strict des contraintes (zéro SQL, zéro `$_POST`, zéro HTML).
   - Réponses complètes aux 4 questions théoriques (Héritage, Abstraction, Nullabilité de l'ID, Encapsulation).
-  - Suite de tests unitaires automatisée (`tests/test_partie2.php`).
-
+  - Respect de la consigne : zéro commentaire dans le code source.
+- **`v0.3.0`** : **Partie 3 — Préparer la persistance** :
+  - Script DDL `database/schema.sql` (table `copies`, types stricts, contraintes `CHECK`, index, données de test).
+  - Isolation des identifiants sensibles via `.env` (exclu par `.gitignore`), modèle `.env.example`, et chargement dynamique par `config/database.php`.
+  - Classe technique `App\Database\Database` (Singleton PDO avec `ERRMODE_EXCEPTION`, `FETCH_ASSOC`, requêtes préparées non émulées).
+  - Script CLI d'initialisation `database/init.php`.
+  - Suite de tests unitaires automatisée `tests/test_partie3.php` validant la connexion, les requêtes préparées et les contraintes `CHECK`.
+  - Réponses complètes aux 4 questions théoriques de la Partie 3.
+  - Respect strict de la règle : zéro commentaire dans le code source PHP et SQL.
