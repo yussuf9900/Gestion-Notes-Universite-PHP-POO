@@ -1,5 +1,19 @@
 # Journal des Versions (CHANGELOG)
 
+## [v0.8.0] - 2026-09-02
+### Partie 8 — Vues du système de notation (MVC)
+- **Ajout** : Gabarits généraux de présentation `templates/layout/header.php` et `templates/layout/footer.php` (responsive, sans dépendance externe lourde).
+- **Ajout** : Vues métier :
+  - `templates/copies/create.php` : formulaire de soumission sécurisé en méthode HTTP `POST`, avec champs typés et affichage des messages d'erreur.
+  - `templates/copies/index.php` : tableau récapitulatif des copies avec badges d'état et actions.
+  - `templates/copies/show.php` : fiche détaillée d'une copie avec calcul de retard et note finale.
+  - `templates/errors/404.php` et `templates/errors/error.php` : pages de signalement d'anomalies.
+- **Sécurité & Architecture** :
+  - Zéro requête SQL et zéro calcul de pénalité dans l'ensemble des vues.
+  - Échappement contextuel systématique de toutes les données dynamiques avec `htmlspecialchars(..., ENT_QUOTES, 'UTF-8')`.
+- **Ajout** : Suite de tests automatisée `tests/test_partie8.php` (24 assertions validées).
+- **Règle** : Zéro commentaire dans l'intégralité des templates HTML et PHP.
+
 ## [v0.7.0] - 2026-09-02
 ### Partie 7 — Service applicatif de soumission des copies
 - **Ajout** : Service métier `App\Service\SoumissionCopieService` (`src/Service/SoumissionCopieService.php`).
