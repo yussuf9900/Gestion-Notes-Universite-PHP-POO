@@ -1,5 +1,18 @@
 # Journal des Versions (CHANGELOG)
 
+## [v0.9.0] - 2026-09-02
+### Partie 9 — Contrôleur MVC des copies
+- **Ajout** : Classe abstraite `App\Controller\BaseController` (`src/Controller/BaseController.php`) factorisant le rendu de vues avec layout et les redirections HTTP avec gestion SAPI propre.
+- **Ajout** : Contrôleur applicatif `App\Controller\CopieExamenController` (`src/Controller/CopieExamenController.php`).
+- **Fonctionnalités** :
+  - `create()` : affichage du formulaire de soumission.
+  - `store()` : capture des données HTTP, instanciation du `SoumettreCopieDTO`, délégation au `SoumissionCopieService`, redirection 302 en cas de succès, interception des erreurs de validation avec code 400.
+  - `index()` : récupération et affichage de la liste des copies.
+  - `show(int $id)` : consultation détaillée avec gestion de l'absence de ressource (erreur 404).
+- **Architecture** : Zéro code SQL et zéro calcul de pénalité dans le contrôleur.
+- **Ajout** : Suite de tests automatisée `tests/test_partie9.php` (18 assertions validées).
+- **Règle** : Zéro commentaire dans l'intégralité du code source PHP.
+
 ## [v0.8.0] - 2026-09-02
 ### Partie 8 — Vues du système de notation (MVC)
 - **Ajout** : Gabarits généraux de présentation `templates/layout/header.php` et `templates/layout/footer.php` (responsive, sans dépendance externe lourde).
