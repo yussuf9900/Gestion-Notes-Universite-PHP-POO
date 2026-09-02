@@ -16,7 +16,7 @@
             --text: #0f172a;
             --border: #e2e8f0;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text); line-height: 1.5; }
         header { background-color: var(--primary); color: #ffffff; padding: 1rem 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .nav-container { max-width: 1000px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
