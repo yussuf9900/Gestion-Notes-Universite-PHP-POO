@@ -25,7 +25,7 @@ class CalculNoteAvecRetardService implements CalculNoteInterface
     public function calculer(CopieExamen $copie): float
     {
         $penalite = $this->calculerPenalite($copie);
-        $noteFinale = $copie->getNoteBrute() - $penalite;
+        $noteFinale = max(0.0, $copie->getNoteBrute() - $penalite);
 
         $copie->setPenaliteAppliquee($penalite);
         $copie->setNoteFinale($noteFinale);
